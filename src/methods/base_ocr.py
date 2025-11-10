@@ -6,7 +6,13 @@ import pandas as pd
 from tqdm import tqdm
 
 from general_config import images_path, output_path
-from src.utils import exctract_images, unify_string_format
+from src.utils import (
+    compute_cer,
+    compute_jaro_winkler_distance,
+    compute_wer,
+    exctract_images,
+    unify_string_format,
+)
 
 
 class BaseOCR(ABC):
@@ -29,7 +35,7 @@ class BaseOCR(ABC):
         output_csv = f"{self.output_path}/{self.model_name}/{dataset}/{self.model_name}_{dataset}.csv"
         if debug_mode:
             output_csv = f"{self.output_path}/{self.model_name}/{dataset}_debug/{self.model_name}_{dataset}.csv"
-        if os.path.exists(output_csv):
+        if os.path.exists(output_csv) and not debug_mode:
             print(f"the results of model {self.model_name} on dataset {dataset} is already Done!")
             return output_csv
         if not os.path.exists(images_folder):
@@ -60,13 +66,15 @@ class BaseOCR(ABC):
     def eval_results(self, csv_path: str, dataset: str, debug_mode=False):
         """
         Evaluate OCR results from a CSV with 'answer' and 'prediction' columns.
-        Outputs a JSON summary and an extended CSV with correctness flag.
-        
+        Outputs a JSON summary with multiple metrics and an extended CSV with correctness flag.
+
         Files are saved in: os.path.join(self.output_path, self.model_name)
         Filenames are based on the input CSV, with '_res' added before '.csv'.
 
         Args:
             csv_path (str): Path to input CSV with 'answer' and 'prediction' columns.
+            dataset (str): Name of dataset (used in output path).
+            debug_mode (bool): If True, saves results in a debug subdirectory.
         """
         if self.model_name is None:
             raise ValueError("model_name must be set before calling eval_results.")
@@ -78,32 +86,47 @@ class BaseOCR(ABC):
         if 'answer' not in df.columns or 'prediction' not in df.columns:
             raise ValueError("CSV must contain 'answer' and 'prediction' columns.")
 
-        # Case-insensitive comparison
+        # Clean and normalize text
         df['answer_clean'] = df['answer'].astype(str).str.lower().map(unify_string_format)
         df['pred_clean'] = df['prediction'].astype(str).str.lower().map(unify_string_format)
+
+        # Exact match accuracy
         df['correct'] = df['answer_clean'] == df['pred_clean']
 
-        # Compute metrics
+        # Compute per-sample CER and WER
+        df['cer'] = df.apply(lambda row: compute_cer(row['answer_clean'], row['pred_clean']), axis=1)
+        df['wer'] = df.apply(lambda row: compute_wer(row['answer_clean'], row['pred_clean']), axis=1)
+        df['jaro_winkler'] = df.apply(lambda row: compute_jaro_winkler_distance(row['answer_clean'], row['pred_clean']), axis=1)
+
+        # Aggregate metrics
         total = len(df)
         correct = int(df['correct'].sum())
-        ratio = round(correct / total if total > 0 else 0.0, 4)
-
+        accuracy = round(correct / total if total > 0 else 0.0, 4)
+        avg_cer = round(df['cer'].mean(), 4)
+        avg_wer = round(df['wer'].mean(), 4)
+        median_cer = round(df['cer'].median(), 4)
+        avg_jaro = round(df['jaro_winkler'].mean(), 4)
         # Prepare output directory
         output_dir = os.path.join(self.output_path, self.model_name, dataset)
         if debug_mode:
-            output_dir = os.path.join(self.output_path, self.model_name, dataset+"_debug")
+            output_dir = os.path.join(output_dir, "debug")
         os.makedirs(output_dir, exist_ok=True)
 
-        # Generate output filenames using input CSV name
+        # Generate output filenames
         base_name = os.path.splitext(os.path.basename(csv_path))[0]
         json_output_path = os.path.join(output_dir, f"{base_name}_summary.json")
         csv_output_path = os.path.join(output_dir, f"{base_name}_evaluated.csv")
 
         # Save JSON result
         results = {
-            "total": total,
-            "correct": correct,
-            "ratio": ratio
+            "dataset": dataset,
+            "total_samples": total,
+            "exact_matches": correct,
+            "accuracy": accuracy,
+            "avg_cer": avg_cer,
+            "avg_wer": avg_wer,
+            "median_cer": median_cer,
+            "avg_jaro": avg_jaro
         }
         with open(json_output_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2)

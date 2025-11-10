@@ -2,6 +2,7 @@ import base64
 import os
 from difflib import SequenceMatcher
 
+import jellyfish
 import numpy as np
 import pandas as pd
 from jiwer import cer, wer
@@ -58,3 +59,12 @@ def compute_wer(answer: str, prediction: str) -> float:
       N = number of words in the reference (answer)
     """
     return wer(answer, prediction)
+
+def compute_jaro_winkler_distance(answer: str, prediction: str) -> float:
+    """
+    Compute the Jaro-Winkler distance between two strings.
+    The distance is (1 - similarity), so 0 = identical, 1 = completely different.
+    """
+    similarity = jellyfish.jaro_winkler_similarity(answer, prediction)
+    distance = 1.0 - similarity
+    return distance
