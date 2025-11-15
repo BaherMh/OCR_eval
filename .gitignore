@@ -13,7 +13,7 @@ ENV/
 *.log
 *.csv
 *.dat
-
+*.csv
 # OS files
 .DS_Store
 Thumbs.db
