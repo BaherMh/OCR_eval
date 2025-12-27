@@ -15,7 +15,9 @@ models = {
     "ppocr_v5_mobile": ModelPaddleOCR,
     "ppocr_v5_server": partial(ModelPaddleOCR, model_name = "PP-OCRv5_server_rec"),
     "EasyOCR": ModelEasyOCR,
+    "EasyOCR_en": partial(ModelEasyOCR, lang='en'),
     "ppocr_v4_mobile": partial(ModelPaddleOCR, model_name="PP-OCRv4_mobile_rec"),
     "ppocr_v4_server": partial(ModelPaddleOCR, model_name="PP-OCRv4_server_rec"),
-    "tesseract": ModelTesseract
+    "tesseract": ModelTesseract,
+    "tesseract_en": partial(ModelTesseract, lang='eng'),
 }
