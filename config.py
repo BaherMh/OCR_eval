@@ -5,8 +5,9 @@ from src.methods.model_paddle_ocr import ModelPaddleOCR
 from src.methods.model_tesseract import ModelTesseract
 
 dataset_paths = {
-    "RusTwit": "C:/Users/baher/OneDrive/Desktop/masters/masters thesis/data/RusTwit.tsv",
-    "RusTwit_real": "C:/Users/baher/OneDrive/Desktop/masters/masters thesis/data/RusTwit_real.tsv"
+    "RusTwit": "../data/RusTwit.tsv",
+    "RusTwit_real": "../data/RusTwit_real.tsv",
+    "OCRBench": "../data/OCRBench.tsv"
 }
 
 # Store classes, not instances
