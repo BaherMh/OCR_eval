@@ -37,7 +37,7 @@ def exctract_images(tsv_data, save_dir):
             f.write(image_data)
 
 def unify_string_format(text):
-    return text.strip().lower().replace('\n',' ').replace(' ', '')
+    return text.strip().lower().replace('\n',' ')
 
 
 

@@ -1,3 +1,4 @@
+import ast
 import json
 import os
 from abc import ABC, abstractmethod
@@ -62,7 +63,7 @@ class BaseOCR(ABC):
         
         os.makedirs(os.path.dirname(output_csv), exist_ok=True)
         results_df = pd.DataFrame(results)
-        results_df.to_csv(output_csv, index=False)
+        results_df.to_csv(output_csv, index=False, encoding='utf-8-sig')
         print(f"OCR results saved to {output_csv}")
         return output_csv
 
@@ -70,15 +71,11 @@ class BaseOCR(ABC):
     def eval_results(self, csv_path: str, dataset: str, debug_mode=False):
         """
         Evaluate OCR results from a CSV with 'answer' and 'prediction' columns.
-        Outputs a JSON summary with multiple metrics and an extended CSV with correctness flag.
+        Handles both single answers and lists of acceptable answers.
+        For each sample, metrics are computed against all reference answers,
+        and the best result (e.g., lowest CER, highest Jaro-Winkler, or exact match) is kept.
 
         Files are saved in: os.path.join(self.output_path, self.model_name)
-        Filenames are based on the input CSV, with '_res' added before '.csv'.
-
-        Args:
-            csv_path (str): Path to input CSV with 'answer' and 'prediction' columns.
-            dataset (str): Name of dataset (used in output path).
-            debug_mode (bool): If True, saves results in a debug subdirectory.
         """
         if self.model_name is None:
             raise ValueError("model_name must be set before calling eval_results.")
@@ -86,30 +83,80 @@ class BaseOCR(ABC):
         # Read CSV
         df = pd.read_csv(csv_path)
 
-        # Validate required columns
         if 'answer' not in df.columns or 'prediction' not in df.columns:
             raise ValueError("CSV must contain 'answer' and 'prediction' columns.")
 
-        # Clean and normalize text
-        df['answer_clean'] = df['answer'].astype(str).str.lower().map(unify_string_format)
+        # Helper: Parse and normalize answer into a list of cleaned strings
+        def parse_and_clean_answers(answer_val):
+            # Handle string vs list representation
+            if isinstance(answer_val, str):
+                try:
+                    # Try to parse as literal list
+                    parsed = ast.literal_eval(answer_val)
+                    if not isinstance(parsed, list):
+                        parsed = [parsed]
+                except (ValueError, SyntaxError):
+                    # Not a list — treat as single answer
+                    parsed = [answer_val]
+            elif isinstance(answer_val, list):
+                parsed = answer_val
+            else:
+                # Handle NaN, None, etc.
+                parsed = [str(answer_val) if pd.notna(answer_val) else ""]
+
+            # Clean each candidate answer
+            return [unify_string_format(str(a).lower()) for a in parsed]
+
+        # Clean prediction
         df['pred_clean'] = df['prediction'].astype(str).str.lower().map(unify_string_format)
 
-        # Exact match accuracy
-        df['correct'] = df['answer_clean'] == df['pred_clean']
+        # Parse and clean all answers into list of strings per row
+        df['answer_clean_list'] = df['answer'].apply(parse_and_clean_answers)
 
-        # Compute per-sample CER and WER
-        df['cer'] = df.apply(lambda row: compute_cer(row['answer_clean'], row['pred_clean']), axis=1)
-        df['wer'] = df.apply(lambda row: compute_wer(row['answer_clean'], row['pred_clean']), axis=1)
-        df['jaro_winkler'] = df.apply(lambda row: compute_jaro_winkler_distance(row['answer_clean'], row['pred_clean']), axis=1)
+        # Now compute best metrics per row by comparing pred_clean to all answer_clean candidates
+        def compute_best_metrics(row):
+            pred = row['pred_clean']
+            refs = row['answer_clean_list']
+
+            # Handle empty refs (fallback)
+            if not refs:
+                refs = [""]
+
+            # Exact match: True if any ref matches pred exactly
+            exact = any(pred == ref for ref in refs)
+
+            # Compute CER, WER, Jaro-Winkler for all refs and take best
+            cers = [compute_cer(ref, pred) for ref in refs]
+            wers = [compute_wer(ref, pred) for ref in refs]
+            jaros = [compute_jaro_winkler_distance(ref, pred) for ref in refs]
+
+            best_cer = min(cers)          # lower is better
+            best_wer = min(wers)
+            best_jaro = max(jaros)        # higher is better
+
+            return pd.Series({
+                'correct': exact,
+                'cer': best_cer,
+                'wer': best_wer,
+                'jaro_winkler': best_jaro,
+                'num_references': len(refs)
+            })
+
+        # Apply best-metric computation
+        metric_cols = df.apply(compute_best_metrics, axis=1)
+        df = pd.concat([df, metric_cols], axis=1)
 
         # Aggregate metrics
         total = len(df)
         correct = int(df['correct'].sum())
         accuracy = round(correct / total if total > 0 else 0.0, 4)
         avg_cer = round(df['cer'].mean(), 4)
+        avg_cer_filtered = round(df[df['cer'] < 1]['cer'].mean(), 4) if not df[df['cer'] < 1].empty else 0.0
         avg_wer = round(df['wer'].mean(), 4)
+        avg_wer_filtered = round(df[df['wer'] < 1]['wer'].mean(), 4) if not df[df['wer'] < 1].empty else 0.0
         median_cer = round(df['cer'].median(), 4)
         avg_jaro = round(df['jaro_winkler'].mean(), 4)
+
         # Prepare output directory
         output_dir = os.path.join(self.output_path, self.model_name, dataset)
         if debug_mode:
@@ -129,14 +176,18 @@ class BaseOCR(ABC):
             "accuracy": accuracy,
             "avg_cer": avg_cer,
             "avg_wer": avg_wer,
+            "avg_cer_filtered": avg_cer_filtered,
+            "avg_wer_filtered": avg_wer_filtered,
             "median_cer": median_cer,
             "avg_jaro": avg_jaro
         }
         with open(json_output_path, 'w', encoding='utf-8') as f:
             json.dump(results, f, indent=2)
 
-        # Save detailed CSV (without helper clean columns)
-        save_df = df.drop(columns=['answer_clean', 'pred_clean'])
-        save_df.to_csv(csv_output_path, index=False)
+        # Optionally drop helper columns before saving CSV
+        df_to_save = df.copy()
+        # Keep original 'answer' and 'prediction', drop internal clean columns if desired
+        # But you might want to keep 'answer_clean_list' for debugging
+        df_to_save.to_csv(csv_output_path, index=False, encoding='utf-8-sig')
 
         print(f"Evaluation results saved to:\n  {json_output_path}\n  {csv_output_path}")

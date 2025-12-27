@@ -1,5 +1,12 @@
 {
-  "total": 3000,
-  "correct": 779,
-  "ratio": 0.2597
+  "dataset": "RusTwit",
+  "total_samples": 3000,
+  "exact_matches": 732,
+  "accuracy": 0.244,
+  "avg_cer": 0.3066,
+  "avg_wer": 0.8103,
+  "avg_cer_filtered": 0.2329,
+  "avg_wer_filtered": 0.2444,
+  "median_cer": 0.1875,
+  "avg_jaro": 0.1767
 }
