@@ -12,7 +12,8 @@ dataset_paths = {
 
 # Store classes, not instances
 models = {
-    "ppocr_v5_mobile": ModelPaddleOCR,
+    "ppocr_v5_mobile_ru": partial(ModelPaddleOCR, model_name="ppocr_v5_mobile_ru"),
+    "ppocr_v5_mobile_ru_finetuned": partial(ModelPaddleOCR, model_name="ppocr_v5_mobile_ru_finetuned", rec_model_dir="C:/Users/baher/OneDrive/Desktop/masters/masters_thesis/paddleOCR/PaddleOCR/inference/eslav_rec_ppocr_v5"),
     "ppocr_v5_server": partial(ModelPaddleOCR, model_name = "PP-OCRv5_server_rec"),
     "EasyOCR": ModelEasyOCR,
     "EasyOCR_en": partial(ModelEasyOCR, lang='en'),

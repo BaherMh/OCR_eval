@@ -7,15 +7,22 @@ from src.methods.base_ocr import BaseOCR
 
 
 class ModelPaddleOCR(BaseOCR):
-    def __init__(self, lang='ru', model_name="PP-OCRv5_mobile_rec") -> None:
+    def __init__(self, lang='ru', model_name="PP-OCRv5_mobile_rec", rec_model_dir=None) -> None:
         super().__init__()
-        self.model = PaddleOCR(
-        text_recognition_model_name=model_name,
-        lang=lang, 
-        use_doc_orientation_classify=False, # Disable document orientation classification model
-        use_doc_unwarping=False, # Disable text image unwarping model
-        use_textline_orientation=False, # Disable text line orientation classification model
-    )
+        if rec_model_dir is None:
+            self.model = PaddleOCR(
+            # text_recognition_model_name=model_name,
+            lang=lang, 
+            use_doc_orientation_classify=False, # Disable document orientation classification model
+            use_doc_unwarping=False, # Disable text image unwarping model
+            use_textline_orientation=False, # Disable text line orientation classification model
+            )
+        else:
+            print("LOADING FINETUNED MODEL")
+            self.model = PaddleOCR(
+                rec_model_dir=rec_model_dir ,
+                lang=lang,
+                )
 
         self.model_name = model_name
 
