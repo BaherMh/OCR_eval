@@ -16,6 +16,23 @@ pip install requirements.txt
 python .\run.py --dataset RusTwit --model ppocr_v5_mobile
 ```
 
+To Evaluate multiple models on multiple benchmarks with one command
+```bash
+git clone https://github.com/BaherMh/OCR_Ru.git
+pip install requirements.txt
+python .\run.py --dataset {dataset_name1} {dataset_name1} --model {model_name1} {model_name2} {model_name3}
+```
+this will evalaute all the possible combinations and save the results
+
+Alternatively for debugging you can activate the debug model, this will only evaluate the first 5 samples of dataset
+
+Example
+```bash
+git clone https://github.com/BaherMh/OCR_Ru.git
+pip install requirements.txt
+python .\run.py --dataset RusTwit --model ppocr_v5_mobile --debug
+```
+
 ## Add a new model
 this repo faciliate the work of adding a new model and evaluating it, you should follow these steps:
 
