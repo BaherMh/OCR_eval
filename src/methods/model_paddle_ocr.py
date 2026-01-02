@@ -22,6 +22,9 @@ class ModelPaddleOCR(BaseOCR):
             self.model = PaddleOCR(
                 rec_model_dir=rec_model_dir ,
                 lang=lang,
+                use_doc_orientation_classify=False, # Disable document orientation classification model
+                use_doc_unwarping=False, # Disable text image unwarping model
+                use_textline_orientation=False, # Disable text line orientation classification model
                 )
 
         self.model_name = model_name
