@@ -1,8 +1,10 @@
 import ast
+import gc
 import json
 import os
 from abc import ABC, abstractmethod
 
+import paddle
 import pandas as pd
 from tqdm import tqdm
 
@@ -47,9 +49,15 @@ class BaseOCR(ABC):
             print("IMAGES FOLDER FOUND!")
         results = []
         for index, row in tqdm(df.iterrows(), total=df.shape[0], desc="Processing rows"):
+            if index % 50 == 0:
+                gc.collect()
+                if paddle.is_compiled_with_cuda():
+                    paddle.device.cuda.empty_cache()  # clears GPU memory cache
             if index > 5 and debug_mode: # in debug mode, inference only first 5
                 break
             image_path = os.path.join(images_folder, str(row['index'])+'.png')
+            if not os.path.exists(image_path):
+                image_path = os.path.join(images_folder, str(row['index'])+'.jpg')
             try:
                 ocr_res = self.run_method(image_path)
             except:
