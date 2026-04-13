@@ -19,7 +19,7 @@ class ModelQwen(BaseOCR):
                 "content": [
                     {
                         "type": "image",
-                        "image": "/home/bm_user/masters/eval/data/RDIOD/0.jpg",
+                        "image": image_path,
                     },
                     {"type": "text", "text": """"Извлеки весь текст с изображения дословно. 
         Требования к выводу:
