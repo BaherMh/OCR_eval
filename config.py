@@ -2,6 +2,7 @@ from functools import partial
 
 from src.methods.model_easy_ocr import ModelEasyOCR
 from src.methods.model_paddle_ocr import ModelPaddleOCR
+from src.methods.model_qwen import ModelQwen
 from src.methods.model_tesseract import ModelTesseract
 
 dataset_paths = {
@@ -21,7 +22,7 @@ models = {
     "slerp": partial(ModelPaddleOCR, model_name="slerp", rec_model_dir="/home/bm_user/masters/models/inference/slerp/"),
     "tuned": partial(ModelPaddleOCR, model_name="tuned", rec_model_dir="/home/bm_user/masters/models/inference/tuned/"),
     "decoupled_slerp": partial(ModelPaddleOCR, model_name="decoupled_slerp", rec_model_dir="/home/bm_user/masters/models/inference/decoupled_slerp/"),
-    
+     "qwen": partial(ModelQwen, lang='ru'),
     
     
     

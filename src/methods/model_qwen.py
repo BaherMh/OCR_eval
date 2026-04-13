@@ -3,7 +3,7 @@ from transformers import AutoProcessor, Qwen3VLForConditionalGeneration
 from src.methods.base_ocr import BaseOCR
 
 
-class ModelEasyOCR(BaseOCR):
+class ModelQwen(BaseOCR):
     def __init__(self, lang='ru') -> None:
         super().__init__()
         self.model = Qwen3VLForConditionalGeneration.from_pretrained(
